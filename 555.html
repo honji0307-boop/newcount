@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>學園社書局 - 互動蓋章月曆</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #e67e22;
+            --stamp-color: #d32f2f;
+            --bg-color: #f4f7f6;
+        }
+
+        body {
+            font-family: "PingFang TC", "Microsoft JhengHei", sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* 分頁導覽 */
+        .tab-container {
+            display: flex;
+            width: 100%;
+            max-width: 450px;
+            background: #fff;
+            border-radius: 50px;
+            padding: 5px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 25px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 12px 0;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 40px;
+            font-weight: bold;
+            color: #7f8c8d;
+            transition: all 0.3s ease;
+        }
+
+        .tab.active {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        /* 月曆主體 */
+        .calendar-card {
+            background: white;
+            width: 100%;
+            max-width: 450px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            padding: 25px;
+            box-sizing: border-box;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 15px;
+        }
+
+        .header h2 {
+            margin: 0;
+            font-size: 1.4rem;
+            color: var(--primary-color);
+        }
+
+        .level-indicator {
+            font-size: 0.85rem;
+            color: var(--accent-color);
+            background: #fef5ec;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-weight: bold;
+        }
+
+        /* 網格系統 */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 10px;
+        }
+
+        .day-label {
+            text-align: center;
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: #bdc3c7;
+            padding-bottom: 10px;
+        }
+
+        .cell {
+            aspect-ratio: 1/1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #fff;
+            border: 1px solid #f0f0f0;
+            border-radius: 12px;
+            cursor: pointer;
+            position: relative;
+            font-size: 1.1rem;
+            color: #34495e;
+            transition: transform 0.1s;
+        }
+
+        .cell:active {
+            transform: scale(0.95);
+        }
+
+        .cell.today {
+            background-color: #ebf5ff;
+            border-color: #3498db;
+            font-weight: bold;
+            color: #2980b9;
+        }
+
+        .cell.empty {
+            border: none;
+            cursor: default;
+        }
+
+        /* 印章樣式 */
+        .stamp-mark {
+            position: absolute;
+            width: 34px;
+            height: 34px;
+            border: 2px solid var(--stamp-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--stamp-color);
+            font-size: 10px;
+            font-weight: 900;
+            transform: rotate(-20deg) scale(0);
+            opacity: 0;
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: none;
+            background: rgba(211, 47, 47, 0.05);
+        }
+
+        .cell.stamped .stamp-mark {
+            opacity: 0.8;
+            transform: rotate(-15deg) scale(1);
+        }
+
+        .info {
+            margin-top: 20px;
+            font-size: 0.8rem;
+            color: #95a5a6;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="tab-container">
+        <div class="tab active" onclick="changeLevel('國小', this)">國小</div>
+        <div class="tab" onclick="changeLevel('國中', this)">國中</div>
+        <div class="tab" onclick="changeLevel('高中', this)">高中</div>
+    </div>
+
+    <div class="calendar-card">
+        <div class="header">
+            <h2 id="calendarTitle">2024年 5月</h2>
+            <span class="level-indicator" id="levelName">國小部</span>
+        </div>
+        
+        <div class="grid" id="calendarGrid">
+            </div>
+    </div>
+
+    <p class="info">※ 點擊日期即可蓋章，紀錄將自動儲存於此瀏覽器。</p>
+
+    <script>
+        let currentLevel = '國小';
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth();
+        const todayDate = now.getDate();
+
+        // 從 LocalStorage 載入資料 (若無則建立空物件)
+        // 儲存格式: { "國小-2024-4-15": true, "國中-2024-4-16": true }
+        let savedStamps = JSON.parse(localStorage.getItem('bookstore_stamps')) || {};
+
+        function renderCalendar() {
+            const grid = document.getElementById('calendarGrid');
+            const title = document.getElementById('calendarTitle');
+            const levelName = document.getElementById('levelName');
+
+            title.innerText = `${year}年 ${month + 1}月`;
+            levelName.innerText = currentLevel + '部';
+            grid.innerHTML = '';
+
+            // 生成星期標籤
+            ['日', '一', '二', '三', '四', '五', '六'].forEach(d => {
+                const div = document.createElement('div');
+                div.className = 'day-label';
+                div.innerText = d;
+                grid.appendChild(div);
+            });
+
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            // 填充月初空白
+            for (let i = 0; i < firstDay; i++) {
+                const empty = document.createElement('div');
+                empty.className = 'cell empty';
+                grid.appendChild(empty);
+            }
+
+            // 生成日期
+            for (let d = 1; d <= daysInMonth; d++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                if (d === todayDate) cell.classList.add('today');
+
+                // 產生日期的唯一 Key 值
+                const stampKey = `${currentLevel}-${year}-${month}-${d}`;
+                
+                // 檢查儲存紀錄
+                if (savedStamps[stampKey]) {
+                    cell.classList.add('stamped');
+                }
+
+                cell.innerHTML = `
+                    ${d}
+                    <div class="stamp-mark">學園社</div>
+                `;
+
+                // 點擊事件
+                cell.onclick = function() {
+                    const isStamped = this.classList.toggle('stamped');
+                    if (isStamped) {
+                        savedStamps[stampKey] = true;
+                    } else {
+                        delete savedStamps[stampKey];
+                    }
+                    // 儲存到 LocalStorage
+                    localStorage.setItem('bookstore_stamps', JSON.stringify(savedStamps));
+                };
+
+                grid.appendChild(cell);
+            }
+        }
+
+        function changeLevel(level, btn) {
+            currentLevel = level;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            renderCalendar();
+        }
+
+        // 頁面載入時初始化
+        window.onload = renderCalendar;
+    </script>
+</body>
+</html>
